@@ -15,6 +15,14 @@
       },
       "oauth_client": [
         {
+          "client_id": "555979859212-attboq18kvf39bdbpb0sns26pv9ldh26.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.zameenhisab.app",
+            "certificate_hash": "e05b86dee95c5ba04879b75f69ebc44ce09106f7"
+          }
+        },
+        {
           "client_id": "555979859212-ucjbtptcu2kk6konbpmia322u96dlfis.apps.googleusercontent.com",
           "client_type": 3
         }
