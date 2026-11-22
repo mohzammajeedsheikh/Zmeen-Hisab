@@ -1,0 +1,519 @@
+<!DOCTYPE html>
+<html lang="ur" dir="rtl"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>Zameen Hisab</title>
+<style>
+:root{--g:#1b7a3a;--gd:#0f5a28;--gl:#e8f5ec;--line:#cfe5d6}
+*{box-sizing:border-box}
+body{margin:0;font-family:'Noto Naskh Arabic','Noto Sans Arabic',Roboto,Arial,sans-serif;background:#f4faf6;color:#16301f;font-size:17px;line-height:1.6}
+.top{position:sticky;top:0;z-index:5;background:var(--g);color:#fff;display:flex;align-items:center;gap:8px;padding:8px 10px}
+.top h1{flex:1;font-size:20px;margin:0}
+.top button{background:#fff;color:var(--g);border:0;border-radius:10px;min-width:46px;min-height:42px;font-size:18px;font-weight:700}
+.chip{background:var(--gd);color:#fff;font-size:14px;padding:3px 12px;text-align:center}
+.pg{padding:10px 12px 40px;max-width:640px;margin:auto}
+.btn{display:block;width:100%;min-height:58px;border:0;border-radius:14px;background:var(--g);color:#fff;font-size:20px;font-weight:700;margin:8px 0;padding:8px;font-family:inherit}
+.btn.alt{background:#fff;color:var(--g);border:2px solid var(--g)}
+.btn.sm{min-height:46px;font-size:16px;margin:4px 0}
+.btn.red{background:#b3261e}
+.btn.sel{background:var(--g);color:#fff}
+.btn.off{background:#fff;color:var(--g);border:2px solid var(--g)}
+.card{background:#fff;border:1px solid var(--line);border-radius:14px;padding:12px;margin:10px 0}
+.card h3{margin:0 0 6px;color:var(--gd);font-size:18px}
+input,select{width:100%;min-height:48px;font-size:18px;border:2px solid var(--line);border-radius:10px;padding:4px 8px;background:#fff;font-family:inherit}
+input:focus{border-color:var(--g);outline:0}
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.g3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px}
+.g4{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
+.g8{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
+.l{font-size:13px;color:#4a6b55;display:block}
+.row{display:grid;grid-template-columns:78px 1fr 1fr;gap:8px;align-items:center;margin:6px 0}
+.res{background:var(--gl);border:2px solid var(--g);border-radius:14px;padding:10px 12px;font-size:18px;margin:10px 0}
+.res b{color:var(--gd)}
+.warn{background:#fff4e5;border:2px solid #e69a00;border-radius:12px;padding:8px 10px;margin:8px 0;font-size:15px}
+.err{background:#fdecea;border:2px solid #b3261e;border-radius:12px;padding:8px 10px;margin:8px 0}
+table{width:100%;border-collapse:collapse}
+td,th{border-bottom:1px solid var(--line);padding:6px 4px;text-align:start;font-size:15px;vertical-align:top}
+th{background:var(--gl)}
+.step{display:flex;align-items:center;justify-content:space-between;margin:6px 0;background:#fff;border:1px solid var(--line);border-radius:12px;padding:6px 10px}
+.step b{flex:1}
+.step button{width:52px;height:52px;border-radius:50%;border:0;background:var(--g);color:#fff;font-size:28px;font-weight:700}
+.step span{width:42px;text-align:center;font-size:22px;font-weight:700}
+#modal{position:fixed;inset:0;background:rgba(0,0,0,.5);display:none;z-index:20;align-items:flex-start;justify-content:center;overflow:auto;padding:16px}
+#modal .box{background:#fff;border-radius:16px;padding:14px;width:100%;max-width:600px}
+#toast{position:fixed;bottom:30px;left:50%;transform:translateX(-50%);background:#222;color:#fff;border-radius:20px;padding:10px 20px;display:none;z-index:30}
+svg text{font-family:Roboto,Arial,sans-serif}
+.small{font-size:13px;color:#4a6b55}
+</style></head><body>
+<div id="app"></div><div id="modal"></div><div id="toast"></div>
+<script>
+/* ---------- storage (Android SharedPreferences, falls back to localStorage) ---------- */
+const A=window.Android;
+function sget(k,d){try{const v=A?A.load(k):localStorage.getItem(k);return v?JSON.parse(v):d}catch(e){return d}}
+function sset(k,v){try{const s=JSON.stringify(v);A?A.save(k,s):localStorage.setItem(k,s)}catch(e){}}
+let S=sget('s',{lang:'ur',mode:'shehri',region:'kpk',marla:225,started:false});
+let K=sget('khata',{no:'',owner:'',plots:[]});
+let H=sget('hist',[]);
+let CUR=null,NAV=[],U={tab:'price',pm:'a'};
+const $=id=>document.getElementById(id);
+
+/* ---------- translations: key|urdu|english ---------- */
+const T={};
+`app|زمین حساب|Zameen Hisab
+selmode|موڈ منتخب کریں|Select Mode
+shehri|شہری حساب|Shehri Hisab
+dehati|دیہاتی حساب|Dehati Hisab
+region|علاقہ|Region
+kpk|خیبر پختونخوا (KPK)|KPK
+punjab|پنجاب|Punjab
+ajk|کشمیر / AJK|Kashmir / AJK
+marlasz|مرلہ کا سائز (مربع فٹ)|Marla size (sq ft)
+cont|آگے چلیں|Continue
+kanal|کنال|Kanal
+marla|مرلہ|Marla
+sarsai|سرسائی|Sarsai
+sqft|مربع فٹ|Sq Ft
+acre|ایکڑ|Acre
+karam|کرم|Karam
+bigha|بیگھہ|Bigha
+biswa|بسوہ|Biswa
+murabba|مربع (25 ایکڑ)|Murabba
+gaz|مربع گز|Sq Gaz
+khasra|خسرہ نمبر|Khasra No
+khata|کھاتہ|Khata
+wirasat|وراثت|Wirasat
+hissa|حصہ|Hissa
+fard|فرد|Fard
+paimaish|زمین پیمائش|Zameen Paimaish
+khataadd|کھاتہ جمع کار|Khata Adder
+conv|یونٹ کنورٹر|Unit Converter
+util|دیگر اوزار|Utilities
+hist|ہسٹری|History
+home|ہوم|Home
+side|سائیڈ|Side
+diag|وتر|Diagonal
+sides|سائیڈوں کی تعداد|Number of sides
+unit|ناپ کا یونٹ|Measure unit
+ft|فٹ|Feet
+inch|انچ|Inch
+meter|میٹر|Meter
+karamu|کرم|Karam
+gazu|گز|Gaz
+total|کل|Total
+result|نتیجہ|Result
+pnote|یہ اندازاً حساب ہے، عدالت کے لیے پیمائش ضروری ہے (Ye andazan hisab hai, adalat ke liye paimaish zaroori hai)|Ye andazan hisab hai, adalat ke liye paimaish zaroori hai (approximate only - official measurement is needed for court)
+pwait|اطراف درج کریں، نقشہ ساتھ ساتھ بنے گا|Enter the sides - the sketch draws as you type
+ptri|یہ ناپ ممکن نہیں، تکون|These lengths are impossible for triangle
+addkhata|کھاتہ میں شامل کریں|Add to Khata
+save|محفوظ کریں|Save
+pdf|PDF رپورٹ|PDF Report
+wa|واٹس ایپ|WhatsApp
+saved|محفوظ ہو گیا|Saved
+calcfirst|پہلے حساب کریں|Calculate first
+added|شامل ہو گیا|Added
+ownername|مالک / مرحوم کا نام (اختیاری)|Owner / deceased name (optional)
+khatano|کھاتہ نمبر|Khata No
+addplot|خسرہ شامل کریں|Add Khasra
+nplots|خسرے|Plots
+sendw|وراثت میں بھیجیں|Send to Wirasat
+sendh|حصہ میں بھیجیں|Send to Hissa
+clear|صاف کریں|Clear
+del|ختم|Delete
+noplots|ابھی کوئی خسرہ نہیں|No plots yet
+w1|مرحلہ 1: کل زمین اور کٹوتیاں|Step 1: Total land and deductions
+wtot|کل زمین|Total land
+wfun|کفن دفن|Funeral
+wdebt|قرض|Debts
+wwas|وصیت (زیادہ سے زیادہ 1/3)|Wasiyah (max 1/3)
+wdist|قابل تقسیم زمین|Distributable land
+wcap|وصیت 1/3 تک محدود کی گئی|Wasiyah limited to 1/3
+w2|مرحلہ 2: فقہ|Step 2: Fiqh
+hanafi|حنفی|Hanafi
+jafaria|جعفریہ|Jafaria
+w3|مرحلہ 3: وارث|Step 3: Heirs
+hr_h|شوہر|Husband
+hr_w|بیویاں (1 سے 4)|Wives (1-4)
+hr_s|بیٹے|Sons
+hr_d|بیٹیاں|Daughters
+hr_f|والد|Father
+hr_m|والدہ|Mother
+hr_b|بھائی|Brothers
+hr_sis|بہنیں|Sisters
+hr_gs|پوتے (بیٹے کے بیٹے)|Grandsons (son's sons)
+hr_gd|پوتیاں (بیٹے کی بیٹیاں)|Granddaughters (son's daughters)
+heir|وارث|Heir
+frac|کسر|Fraction
+each|ہر ایک|each
+n_awl|عول لگایا گیا: حصے متناسب کم کیے گئے|Awl applied: shares reduced proportionally
+n_radd|ردّ لگایا گیا: بچی ہوئی زمین حصہ داروں کو لوٹائی گئی|Radd applied: leftover returned to the share-holders
+n_loss|جعفریہ: کمی بیٹیوں/بہنوں کے حصے سے پوری کی گئی|Jafaria: shortfall taken from daughters'/sisters' share
+n_blk|حجب (محروم)|Blocked (Hajb)
+noheir|کوئی وارث منتخب نہیں|No heir selected
+wnote|یہ اندازاً حساب ہے۔ حتمی وراثت کے لیے عالم دین / عدالت / پٹواری سے فرد بنوائیں۔ داد، نانا، سوتیلے بہن بھائی، نواسے وغیرہ شامل نہیں۔|Approximate only. For final Wirasat get a Fard from a scholar / court / patwari. Grandparents, half-siblings, daughter's children etc. are not included.
+price|قیمت|Price
+priceA|رقبہ × ریٹ = قیمت|Area x Rate = Price
+priceB|قیمت ÷ رقبہ = ریٹ|Price / Area = Rate
+area|رقبہ|Area
+rate|ریٹ فی مرلہ (روپے)|Rate per Marla (Rs)
+totprice|کل قیمت (روپے)|Total price (Rs)
+permarla|فی مرلہ|Per Marla
+perkanal|فی کنال|Per Kanal
+persqft|فی مربع فٹ|Per Sq Ft
+persarsai|فی سرسائی|Per Sarsai
+equal|برابر تقسیم|Equal split
+custom|فیصد کے حساب سے|By percent
+persons|افراد کی تعداد|Number of persons
+pcts|فیصد (مثلاً 40,30,30)|Percents (e.g. 40,30,30)
+pctbad|فیصد کا مجموعہ 100 نہیں|Percents do not add to 100
+person|فرد|Person
+rect|مستطیل / پلاٹ|Rectangle / Plot
+plots|پلاٹ سائز|Plot Sizes
+length|لمبائی|Length
+width|چوڑائی|Width
+nohist|ہسٹری خالی ہے|History is empty
+view|دیکھیں|View
+clearall|سب صاف کریں|Clear all
+change|موڈ بدلیں|Change mode
+off|آف لائن • بغیر لاگ ان • بغیر اشتہار|Offline - no login - no ads
+sel|منتخب|selected
+fixed|مقرر|fixed
+perm|مرلہ = |Marla = 
+date|تاریخ|Date
+mode|موڈ|Mode
+details|تفصیل|Details
+foot|زمین حساب - آف لائن ایپ|Zameen Hisab - offline app
+inp|درج کریں|Enter
+tip|ایکڑ = 8 کنال (دیہاتی)|Acre = 8 Kanal (Dehati)
+cnt|تعداد|Count
+sel2|تکون|Triangle`.split('\n').forEach(l=>{const p=l.split('|');T[p[0]]=[p[1],p[2]]});
+const t=k=>T[k]?T[k][S.lang=='ur'?0:1]:k;
+
+/* ---------- units ---------- */
+const m=()=>S.marla, sar=()=>S.marla/9;
+function mopts(){if(S.region=='ajk')return[272.25];if(S.mode=='shehri')return[225,250];if(S.region=='kpk')return[272.25,250];return[272.25]}
+function fixMarla(){const o=mopts();if(!o.includes(S.marla))S.marla=o[0]}
+function unitsDef(){
+ const u={kanal:20*m(),marla:m(),sarsai:sar(),sqft:1};
+ if(S.region!='ajk'){u.acre=S.mode=='dehati'?160*m():43560;u.karam=30.25;u.bigha=80*m();u.biswa=4*m()}
+ if(S.mode=='dehati'&&S.region!='ajk')u.murabba=25*u.acre;
+ if(S.mode=='shehri')u.gaz=9;
+ return u}
+const UORD=['kanal','marla','sarsai','sqft','acre','karam','bigha','biswa','murabba','gaz'];
+const fmt=(n,d=2)=>isFinite(n)?(+(+n).toFixed(d)).toLocaleString('en-US',{maximumFractionDigits:d}):'-';
+function split(sq){sq=Math.round(sq*1000)/1000;const K2=20*m();let k=Math.floor(sq/K2+1e-9),r=sq-k*K2,ma=Math.floor(r/m()+1e-9);r-=ma*m();if(r<0)r=0;return{k,ma,r}}
+function kms(sq){const o=split(sq);let sa=Math.round(o.r/sar()*100)/100,r=Math.round(o.r*100)/100,ma=o.ma,k=o.k;if(sa>=9){sa=0;r=0;ma++}if(ma>=20){ma-=20;k++}return{k,ma,sa,sq:r}}
+function kmsT(sq){const o=kms(sq);return `${o.k} ${t('kanal')} ${o.ma} ${t('marla')} ${fmt(o.sa)} ${t('sarsai')}`}
+function kmsF(sq){const o=kms(sq);return `${o.k} ${t('kanal')} ${o.ma} ${t('marla')} ${fmt(o.sq)} ${t('sqft')}`}
+function areaLines(sq){
+ const L=[[t('kanal')+'-'+t('marla')+'-'+t('sarsai'),kmsT(sq)],[t('kanal')+'-'+t('marla')+'-'+t('sqft'),kmsF(sq)],[t('sqft'),fmt(sq)]];
+ if(S.region!='ajk')L.push([t('acre'),fmt(sq/unitsDef().acre,4)]);
+ if(S.region=='punjab'){const bg=80*m(),bi=4*m();const b=Math.floor(sq/bg+1e-9);L.push([t('bigha')+'-'+t('biswa'),`${b} ${t('bigha')} ${fmt((sq-b*bg)/bi)} ${t('biswa')}`])}
+ return L}
+const linesHtml=L=>L.map(x=>`<div>${x[0]}: <b>${x[1]}</b></div>`).join('');
+const linesTxt=L=>L.map(x=>`${x[0]}: ${x[1]}`).join('\n');
+
+/* ---------- area input widget (Kanal / Marla / Sarsai / SqFt) ---------- */
+const aIn=(id,oc)=>`<div class="g4">${['kanal','marla','sarsai','sqft'].map(u=>`<label class="l">${t(u)}<input id="${id}_${u}" type="number" inputmode="decimal" min="0" oninput="${oc||''}"></label>`).join('')}</div>`;
+const rA=id=>{const g=u=>parseFloat($(id+'_'+u).value)||0;return g('kanal')*20*m()+g('marla')*m()+g('sarsai')*sar()+g('sqft')};
+function sA(id,sq){const o=split(sq);$(id+'_kanal').value=o.k||'';$(id+'_marla').value=o.ma||'';$(id+'_sarsai').value='';$(id+'_sqft').value=o.r?+o.r.toFixed(3):''}
+
+/* ---------- UI helpers ---------- */
+function toast(s){const e=$('toast');e.textContent=s;e.style.display='block';clearTimeout(toast.h);toast.h=setTimeout(()=>e.style.display='none',1800)}
+function modal(h){const e=$('modal');e.innerHTML='<div class="box">'+h+'</div>';e.style.display='flex'}
+function closeModal(){$('modal').style.display='none'}
+function modeChip(){const r={kpk:'KPK',punjab:'Punjab',ajk:'AJK'}[S.region];return `${S.mode=='shehri'?t('shehri'):t('dehati')} • ${r} • ${t('marla')} ${S.marla}`}
+function page(title,body,back){
+ document.documentElement.dir=S.lang=='ur'?'rtl':'ltr';document.documentElement.lang=S.lang;
+ $('app').innerHTML=`<div class="top">${back?`<button onclick="goBack()">${S.lang=='ur'?'→':'←'}</button>`:''}<h1>${title}</h1><button onclick="toggleLang()">${S.lang=='ur'?'EN':'اردو'}</button></div>${S.started?`<div class="chip">${modeChip()}</div>`:''}<div class="pg">${body}</div>`;
+ window.scrollTo(0,0)}
+function toggleLang(){S.lang=S.lang=='ur'?'en':'ur';sset('s',S);show(NAV[NAV.length-1])}
+function go(n){NAV.push(n);show(n)}
+function goBack(){if(NAV.length<=1)return false;NAV.pop();show(NAV[NAV.length-1]);return true}
+window.goBack=goBack;
+function home(){NAV=['home'];show('home')}
+function show(n){closeModal();SCR[n]()}
+const bar=()=>`<div class="g3"><button class="btn sm" onclick="pdfC()">${t('pdf')}</button><button class="btn sm" onclick="shareC()">${t('wa')}</button><button class="btn sm alt" onclick="saveH()">${t('save')}</button></div>`;
+const head=()=>`${t('date')}: ${new Date().toLocaleDateString('en-GB')}<br>${t('mode')}: ${modeChip()}`;
+
+/* ---------- report / share / history ---------- */
+function setCur(type,title,body,txt){CUR={id:Date.now(),type,title,body,txt:`*${t('app')}* - ${title}\n${new Date().toLocaleDateString('en-GB')}\n${modeChip()}\n\n${txt}\n\n${t('foot')}`}}
+function docHtml(c){return `<html dir="${S.lang=='ur'?'rtl':'ltr'}"><head><meta charset="utf-8"><style>body{font-family:'Noto Naskh Arabic',Roboto,Arial,sans-serif;padding:18px;color:#111;font-size:15px}h1{color:#1b7a3a;border-bottom:3px solid #1b7a3a;padding-bottom:6px;margin:0 0 6px}h2{color:#0f5a28}table{width:100%;border-collapse:collapse}td,th{border:1px solid #9bc9a8;padding:5px;text-align:start}th{background:#e8f5ec}.f{margin-top:20px;color:#555;font-size:12px;border-top:1px solid #aaa;padding-top:6px}svg{max-width:100%;height:auto}</style></head><body><h1>Zameen Hisab - زمین حساب</h1><h2>${c.title}</h2><p>${head()}</p>${c.body}<div class="f">${t('foot')}</div></body></html>`}
+function pdfC(){if(!CUR)return toast(t('calcfirst'));const h=docHtml(CUR);if(A&&A.printHtml)A.printHtml(CUR.title,h);else{const w=window.open('','_blank');w.document.write(h);w.document.close();setTimeout(()=>w.print(),300)}}
+function shareC(){if(!CUR)return toast(t('calcfirst'));if(A&&A.share)A.share(CUR.txt);else window.open('https://wa.me/?text='+encodeURIComponent(CUR.txt))}
+function saveH(){if(!CUR)return toast(t('calcfirst'));H=H.filter(x=>x.id!=CUR.id);H.unshift(CUR);H=H.slice(0,100);sset('hist',H);toast(t('saved'))}
+
+/* ---------- fractions (exact) ---------- */
+const gcd=(a,b)=>b?gcd(b,a%b):a;
+const F=(n,d=1)=>{const g=gcd(Math.abs(n),d)||1;return{n:n/g,d:d/g}};
+const fa=(x,y)=>F(x.n*y.d+y.n*x.d,x.d*y.d),fs=(x,y)=>F(x.n*y.d-y.n*x.d,x.d*y.d),fm=(x,y)=>F(x.n*y.n,x.d*y.d),fd=(x,y)=>F(x.n*y.d,x.d*y.n);
+const fc=(x,y)=>x.n*y.d-y.n*x.d,fv=x=>x.n/x.d,fstr=x=>x.n==0?'0':x.d==1?String(x.n):x.n+'/'+x.d;
+const ORDER=['h','w','s','d','f','m','b','sis','gs','gd'];
+const sumF=sh=>Object.values(sh).reduce(fa,F(0));
+const pack=(sh,c,notes)=>({rows:ORDER.filter(k=>sh[k]&&sh[k].n>0).map(k=>({k,n:c[k],f:sh[k]})),notes});
+function radd(sh,skip,notes){
+ const rem=fs(F(1),sumF(sh));if(rem.n<=0)return;
+ let keys=Object.keys(sh).filter(k=>!skip.includes(k));if(!keys.length)keys=Object.keys(sh);
+ const base=keys.reduce((a,k)=>fa(a,sh[k]),F(0));
+ keys.forEach(k=>sh[k]=fa(sh[k],fm(rem,fd(sh[k],base))));notes.push('n_radd')}
+
+/* ---------- Wirasat engines ---------- */
+function hanafi(c){
+ const sh={},notes=[],add=(k,f)=>{sh[k]=sh[k]?fa(sh[k],f):f};
+ const desc=c.s+c.d+c.gs+c.gd>0;
+ let gs=c.gs,gd=c.gd,b=c.b,si=c.sis;
+ if(c.s>0){gs=0;gd=0}
+ if(c.s==0&&c.d>=2&&gs==0)gd=0;
+ if(c.s>0||gs>0||c.f>0){b=0;si=0}
+ const sib=c.b+c.sis,maleD=c.s>0||gs>0,femD=!maleD&&(c.d>0||gd>0);
+ let spouse=F(0);
+ if(c.h){spouse=desc?F(1,4):F(1,2);add('h',spouse)}
+ if(c.w){spouse=desc?F(1,8):F(1,4);add('w',spouse)}
+ if(c.m){let f;if(desc||sib>=2)f=F(1,6);else if(c.f&&(c.h||c.w))f=fm(fs(F(1),spouse),F(1,3));else f=F(1,3);add('m',f)}
+ if(c.f&&(maleD||femD))add('f',F(1,6));
+ if(c.s==0){if(c.d==1)add('d',F(1,2));else if(c.d>=2)add('d',F(2,3))}
+ if(c.s==0&&gs==0&&gd>0){if(c.d==0)add('gd',gd==1?F(1,2):F(2,3));else if(c.d==1)add('gd',F(1,6))}
+ const sisAs=si>0&&b==0&&(c.d>0||gd>0);
+ if(si>0&&b==0&&!sisAs)add('sis',si==1?F(1,2):F(2,3));
+ const sum=sumF(sh);
+ if(fc(sum,F(1))>0){Object.keys(sh).forEach(k=>sh[k]=fd(sh[k],sum));notes.push('n_awl');return pack(sh,c,notes)}
+ const rem=fs(F(1),sum);
+ if(rem.n>0){
+  if(c.s>0){const u=2*c.s+c.d;add('s',fm(rem,F(2*c.s,u)));if(c.d)add('d',fm(rem,F(c.d,u)))}
+  else if(gs>0){const u=2*gs+gd;add('gs',fm(rem,F(2*gs,u)));if(gd>0)add('gd',fm(rem,F(gd,u)))}
+  else if(c.f)add('f',rem);
+  else if(b>0){const u=2*b+si;add('b',fm(rem,F(2*b,u)));if(si)add('sis',fm(rem,F(si,u)))}
+  else if(sisAs)add('sis',rem);
+  else radd(sh,['h','w'],notes)}
+ const r=pack(sh,c,notes);return r}
+function jafaria(c){
+ const sh={},notes=[],add=(k,f)=>{sh[k]=sh[k]?fa(sh[k],f):f};
+ let s=c.s,d=c.d,gk=false;
+ if(s+d==0&&c.gs+c.gd>0){s=c.gs;d=c.gd;gk=true}
+ const sk=gk?'gs':'s',dk=gk?'gd':'d',desc=s+d>0,cls1=desc||c.f>0||c.m>0;
+ const sibCond=c.f>0&&(c.b>=2||(c.b>=1&&c.sis>=2)||c.sis>=4);
+ let spouse=F(0);
+ if(c.h){spouse=desc?F(1,4):F(1,2);add('h',spouse)}
+ if(c.w){spouse=desc?F(1,8):F(1,4);add('w',spouse)}
+ if(cls1){
+  if(c.m)add('m',(desc||sibCond)?F(1,6):F(1,3));
+  if(c.f&&desc)add('f',F(1,6));
+  if(s==0&&d>0)add(dk,d==1?F(1,2):F(2,3));
+  const sum=sumF(sh);
+  if(fc(sum,F(1))>0){const others=fs(sum,sh[dk]);sh[dk]=fs(F(1),others);notes.push('n_loss');return pack(sh,c,notes)}
+  const rem=fs(F(1),sum);
+  if(rem.n>0){
+   if(s>0){const u=2*s+d;add(sk,fm(rem,F(2*s,u)));if(d)add(dk,fm(rem,F(d,u)))}
+   else if(c.f&&!desc)add('f',rem);
+   else radd(sh,sibCond?['h','w','m']:['h','w'],notes)}
+ }else if(c.b+c.sis>0){
+  const b=c.b,si=c.sis;
+  if(b>0){const rem=fs(F(1),sumF(sh)),u=2*b+si;add('b',fm(rem,F(2*b,u)));if(si)add('sis',fm(rem,F(si,u)))}
+  else{add('sis',si==1?F(1,2):F(2,3));const sum=sumF(sh);
+   if(fc(sum,F(1))>0){sh.sis=fs(F(1),spouse);notes.push('n_loss')}else radd(sh,['h','w'],notes)}
+ }else if(c.h||c.w){radd(sh,[],notes)}
+ return pack(sh,c,notes)}
+
+/* ---------- screens ---------- */
+const SCR={};
+SCR.mode=()=>{
+ fixMarla();const o=mopts();
+ const body=`<div class="card"><h3>${t('selmode')}</h3>
+ <button class="btn ${S.mode=='shehri'?'sel':'off'}" onclick="setMode('shehri')">🏙️ 1. ${t('shehri')}</button>
+ <button class="btn ${S.mode=='dehati'?'sel':'off'}" onclick="setMode('dehati')">🌾 2. ${t('dehati')}</button></div>
+ <div class="card"><h3>3. ${t('region')}</h3>
+ ${['kpk','punjab','ajk'].map(r=>`<button class="btn ${S.region==r?'sel':'off'}" onclick="setRegion('${r}')">${t(r)}</button>`).join('')}</div>
+ <div class="card"><h3>${t('marlasz')}</h3>${o.length>1?`<div class="g2">${o.map(x=>`<button class="btn ${S.marla==x?'sel':'off'}" onclick="setMarla(${x})">${x}</button>`).join('')}</div>`:`<div class="res"><b>${o[0]}</b> (${t('fixed')})</div>`}
+ <div class="small">1 ${t('kanal')} = 20 ${t('marla')}${S.mode=='dehati'||S.region!='shehri'?' • 1 '+t('marla')+' = 9 '+t('sarsai'):''}${S.region=='ajk'?' • '+t('kanal')+'-'+t('marla')+'-'+t('sarsai'):''}</div></div>
+ <button class="btn" onclick="startApp()">${t('cont')} ✔</button><div class="small" style="text-align:center">${t('off')}</div>`;
+ page(t('app'),body,false)};
+function setMode(x){S.mode=x;S.marla=null;fixMarla();sset('s',S);SCR.mode()}
+function setRegion(x){S.region=x;fixMarla();sset('s',S);SCR.mode()}
+function setMarla(x){S.marla=x;sset('s',S);SCR.mode()}
+function startApp(){S.started=true;sset('s',S);home()}
+
+SCR.home=()=>{
+ const b=(n,ic,l)=>`<button class="btn" onclick="go('${n}')">${ic} ${l}</button>`;
+ page(t('app'),b('paim','📐',t('paimaish'))+b('khata','📒',t('khataadd'))+b('wir','⚖️',t('wirasat'))+b('util','🧮',t('util'))+b('conv','🔄',t('conv'))+b('hist','🕘',t('hist'))+`<button class="btn alt" onclick="NAV=['mode'];show('mode')">⚙️ ${t('change')}</button>`,false)};
+
+/* ----- Converter ----- */
+SCR.conv=()=>{const u=unitsDef();
+ const rows=UORD.filter(x=>u[x]).map(x=>`<div class="card" style="margin:6px 0"><label class="l">${t(x)} ${x=='acre'&&S.mode=='dehati'?'<span class="small">('+t('tip')+')</span>':''}<input id="cv_${x}" type="number" inputmode="decimal" oninput="cvIn('${x}')"></label></div>`).join('');
+ page(t('conv'),rows+`<button class="btn alt sm" onclick="show('conv')">${t('clear')}</button>`,true)};
+function cvIn(x){const u=unitsDef(),v=parseFloat($('cv_'+x).value);
+ Object.keys(u).forEach(o=>{if(o!=x)$('cv_'+o).value=isNaN(v)?'':String(+(v*u[x]/u[o]).toFixed(4))})}
+
+/* ----- Paimaish ----- */
+let P={n:4,u:'ft',v:{},area:0};
+const LT=i=>String.fromCharCode(65+i);
+function pKeys(){const n=P.n,k=[];for(let i=0;i<n;i++)k.push(['s'+i,LT(i)+LT((i+1)%n),'s']);for(let j=2;j<=n-2;j++)k.push(['d'+j,LT(0)+LT(j),'d']);return k}
+const FAC={karam:5.5,m:3.28084,gaz:3};
+function lenOf(key){const v=P.v;if(P.u=='ft'){const a=v[key+'a'],b=v[key+'b'];if(!a&&!b)return NaN;return(+a||0)+(+b||0)/12}
+ const x=v[key+'a'];if(!x)return NaN;return +x*FAC[P.u]}
+function pUnits(){const l=[['ft',t('ft')+'+'+t('inch')],['m',t('meter')]];if(S.mode=='dehati')l.push(['karam',t('karamu')]);if(S.mode=='shehri')l.push(['gaz',t('gazu')]);return l}
+SCR.paim=()=>{
+ if(!pUnits().some(x=>x[0]==P.u)){P.u='ft';P.v={}}
+ const body=`<div class="card"><h3>${t('sides')}</h3><div class="g8">${[3,4,5,6,7,8,9,10].map(n=>`<button class="btn sm ${P.n==n?'sel':'off'}" onclick="pN(${n})">${n}</button>`).join('')}</div>
+ <h3>${t('unit')}</h3><div class="g3">${pUnits().map(x=>`<button class="btn sm ${P.u==x[0]?'sel':'off'}" onclick="pU('${x[0]}')">${x[1]}</button>`).join('')}</div></div>
+ <div class="card" id="pin">${pInputs()}</div>
+ <div class="card"><svg id="sk" viewBox="0 0 300 240" width="100%"></svg></div>
+ <div id="pres"></div><div id="pbar" style="display:none">${bar()}<button class="btn alt" onclick="askKh()">${t('addkhata')}</button></div>`;
+ page(t('paimaish'),body,true);calcP()};
+function pInputs(){const ph=P.u=='ft'?[t('ft'),t('inch')]:[pUnits().find(x=>x[0]==P.u)[1]];
+ return pKeys().map(([k,lab,ty])=>`<div class="row"><b>${ty=='d'?t('diag'):t('side')} ${lab}</b>${ph.map((p,i)=>`<input type="number" inputmode="decimal" min="0" placeholder="${p}" value="${P.v[k+'ab'[i]]||''}" ${ph.length==1?'style="grid-column:span 2"':''} oninput="pin('${k+'ab'[i]}',this.value)">`).join('')}</div>`).join('')}
+function pN(n){P.n=n;show('paim')}
+function pU(u){P.u=u;P.v={};show('paim')}
+function pin(id,v){P.v[id]=v;calcP()}
+function calcP(){
+ const n=P.n,s=[],d={};
+ for(let i=0;i<n;i++)s[i]=lenOf('s'+i);
+ for(let j=2;j<=n-2;j++)d[j]=lenOf('d'+j);
+ const pos=[[0,0]];if(!isNaN(s[0]))pos.push([s[0],0]);
+ let area=0,full=true,err='';
+ const lens=[];
+ for(let i=1;i<=n-2;i++){
+  const Lf=i==1?s[0]:d[i],Rt=i==n-2?s[n-1]:d[i+1],M=s[i];
+  if([Lf,Rt,M].some(isNaN)){full=false;break}
+  if(Lf+M<=Rt+1e-9||Lf+Rt<=M+1e-9||M+Rt<=Lf+1e-9){err=`${t('ptri')} ${LT(0)}${LT(i)}${LT(i+1)}`;full=false;break}
+  const q=(Lf+M+Rt)/2;area+=Math.sqrt(Math.max(0,q*(q-Lf)*(q-M)*(q-Rt)));
+  const P0=pos[0],Pi=pos[i],dd=Math.hypot(Pi[0]-P0[0],Pi[1]-P0[1]);
+  const a=(Rt*Rt-M*M+dd*dd)/(2*dd),h=Math.sqrt(Math.max(0,Rt*Rt-a*a));
+  const bx=P0[0]+a*(Pi[0]-P0[0])/dd,by=P0[1]+a*(Pi[1]-P0[1])/dd,px=-(Pi[1]-P0[1])/dd,py=(Pi[0]-P0[0])/dd;
+  const c1=[bx+h*px,by+h*py],c2=[bx-h*px,by-h*py];
+  const sp=i==1?-1:((Pi[0]-P0[0])*(pos[i-1][1]-P0[1])-(Pi[1]-P0[1])*(pos[i-1][0]-P0[0]));
+  pos.push(sp<=0?c1:c2)}
+ drawSketch(pos);
+ const pr=$('pres'),pb=$('pbar');if(!pr)return;
+ CUR=null;pb.style.display='none';
+ if(err){pr.innerHTML=`<div class="err">${err}</div>`;return}
+ if(!full||pos.length<n){pr.innerHTML=`<div class="small">${t('pwait')}</div>`;return}
+ P.area=area*1;const L=areaLines(area);
+ pr.innerHTML=`<div class="res"><b>${t('result')}</b>${linesHtml(L)}</div><div class="warn">${t('pnote')}</div>`;pb.style.display='block';
+ const rows=pKeys().map(([k,lab,ty])=>`<tr><td>${ty=='d'?t('diag'):t('side')} ${lab}</td><td>${fmt(lenOf(k),2)} ${t('ft')}</td></tr>`).join('');
+ setCur('paim',t('paimaish'),`<div style="text-align:center">${$('sk').outerHTML}</div><table><tr><th>${t('side')}</th><th>${t('length')}</th></tr>${rows}</table><div class="res">${linesHtml(L)}</div><p>${t('pnote')}</p>`,`${n} ${t('sides')}\n${linesTxt(L)}\n\n${t('pnote')}`)}
+function drawSketch(pos){
+ const svg=$('sk');if(!svg)return;const W=300,Hh=240,pd=30;
+ const xs=pos.map(p=>p[0]),ys=pos.map(p=>p[1]),x0=Math.min(...xs),x1=Math.max(...xs),y0=Math.min(...ys),y1=Math.max(...ys);
+ const sc=Math.min((W-2*pd)/Math.max(x1-x0,1e-6),(Hh-2*pd)/Math.max(y1-y0,1e-6));
+ const X=p=>pd+(p[0]-x0)*sc+((W-2*pd)-(x1-x0)*sc)/2,Y=p=>Hh-pd-(p[1]-y0)*sc-((Hh-2*pd)-(y1-y0)*sc)/2;
+ const cx=pos.reduce((a,p)=>a+X(p),0)/pos.length,cy=pos.reduce((a,p)=>a+Y(p),0)/pos.length;
+ let o='';
+ if(pos.length>=3)o+=`<polygon points="${pos.map(p=>X(p)+','+Y(p)).join(' ')}" fill="#cfe9d6" stroke="none"/>`;
+ const ln=(a,b,dash,val)=>{o+=`<line x1="${X(a)}" y1="${Y(a)}" x2="${X(b)}" y2="${Y(b)}" stroke="${dash?'#6aa57d':'#0f5a28'}" stroke-width="${dash?1.2:2.4}" ${dash?'stroke-dasharray="4 3"':''}/>`;
+  if(val)o+=`<text x="${(X(a)+X(b))/2}" y="${(Y(a)+Y(b))/2-3}" font-size="9" fill="#333" text-anchor="middle">${fmt(val,1)}</text>`};
+ for(let i=0;i<pos.length-1;i++)ln(pos[i],pos[i+1],false,lenOf('s'+i));
+ if(pos.length==P.n)ln(pos[pos.length-1],pos[0],false,lenOf('s'+(P.n-1)));
+ for(let j=2;j<=pos.length-2&&j<=P.n-2;j++)ln(pos[0],pos[j],true,lenOf('d'+j));
+ pos.forEach((p,i)=>{let dx=X(p)-cx,dy=Y(p)-cy,dl=Math.hypot(dx,dy)||1;o+=`<circle cx="${X(p)}" cy="${Y(p)}" r="3.5" fill="#1b7a3a"/><text x="${X(p)+dx/dl*12}" y="${Y(p)+dy/dl*12+4}" font-size="13" font-weight="700" fill="#0f5a28" text-anchor="middle">${LT(i)}</text>`});
+ svg.innerHTML=o}
+function askKh(){modal(`<h3>${t('khasra')}</h3><input id="kh_in" placeholder="${t('khasra')}"><button class="btn" onclick="addFromP()">${t('addkhata')}</button><button class="btn alt" onclick="closeModal()">✕</button>`)}
+function addFromP(){K.plots.push({kh:$('kh_in').value||String(K.plots.length+1),sq:P.area});sset('khata',K);closeModal();toast(t('added'))}
+
+/* ----- Khata adder ----- */
+const kTot=()=>K.plots.reduce((a,p)=>a+p.sq,0);
+SCR.khata=()=>{
+ page(t('khataadd'),`<div class="card"><div class="g2"><label class="l">${t('khatano')}<input id="k_no" value="${K.no||''}" oninput="K.no=this.value;sset('khata',K)"></label><label class="l">${t('ownername')}<input id="k_ow" value="${K.owner||''}" oninput="K.owner=this.value;sset('khata',K)"></label></div></div>
+ <div class="card"><h3>${t('addplot')}</h3><label class="l">${t('khasra')}<input id="k_kh"></label>${aIn('ka')}<button class="btn" onclick="kAdd()">＋ ${t('addplot')}</button></div>
+ <div id="klist"></div>`,true);kList()};
+function kAdd(){const sq=rA('ka');if(!(sq>0))return;K.plots.push({kh:$('k_kh').value||String(K.plots.length+1),sq});sset('khata',K);$('k_kh').value='';['kanal','marla','sarsai','sqft'].forEach(u=>$('ka_'+u).value='');kList()}
+function kDel(i){K.plots.splice(i,1);sset('khata',K);kList()}
+function kClear(){K.plots=[];sset('khata',K);kList()}
+function kList(){
+ const e=$('klist');if(!e)return;
+ if(!K.plots.length){e.innerHTML=`<div class="small">${t('noplots')}</div>`;CUR=null;return}
+ const rows=K.plots.map((p,i)=>`<tr><td>${i+1}</td><td><b>${p.kh}</b></td><td>${kmsT(p.sq)}<br><span class="small">${fmt(p.sq)} ${t('sqft')}</span></td><td><button class="btn red sm" style="min-height:40px;margin:0" onclick="kDel(${i})">✕</button></td></tr>`).join('');
+ const tot=kTot(),L=areaLines(tot);
+ e.innerHTML=`<div class="card"><table><tr><th>#</th><th>${t('khasra')}</th><th>${t('area')}</th><th></th></tr>${rows}</table></div><div class="res"><b>${t('total')} (${K.plots.length} ${t('nplots')})</b>${linesHtml(L)}</div>
+ <button class="btn" onclick="toW(${tot})">⚖️ ${t('sendw')}</button><button class="btn" onclick="toH(${tot})">➗ ${t('sendh')}</button>${bar()}<button class="btn red sm" onclick="kClear()">${t('clear')}</button>`;
+ const head2=`${t('khata')}: ${K.no||'-'} | ${K.owner||''}`;
+ const trs=K.plots.map((p,i)=>`<tr><td>${i+1}</td><td>${p.kh}</td><td>${kmsT(p.sq)}</td><td>${fmt(p.sq)}</td></tr>`).join('');
+ setCur('khata',t('khata')+' '+(K.no||''),`<p>${head2}</p><table><tr><th>#</th><th>${t('khasra')}</th><th>${t('area')}</th><th>${t('sqft')}</th></tr>${trs}</table><div class="res">${linesHtml(L)}</div>`,`${head2}\n`+K.plots.map((p,i)=>`${i+1}) ${t('khasra')} ${p.kh}: ${kmsT(p.sq)}`).join('\n')+`\n\n${t('total')}:\n${linesTxt(L)}`)}
+function toW(sq){W.pre=sq;go('wir')}
+function toH(sq){U.tab='hissa';U.pre=sq;go('util')}
+
+/* ----- Wirasat ----- */
+let W={fiqh:'hanafi',c:{h:0,w:0,s:0,d:0,f:0,m:0,b:0,sis:0,gs:0,gd:0},pre:null};
+const MAXH={h:1,w:4,f:1,m:1};
+SCR.wir=()=>{
+ const steps=ORDER.map(k=>`<div class="step"><b>${t('hr_'+k)}</b><button onclick="wStep('${k}',-1)">−</button><span id="wc_${k}">${W.c[k]}</span><button onclick="wStep('${k}',1)">+</button></div>`).join('');
+ page(t('wirasat'),`<div class="card"><h3>${t('w1')}</h3><label class="l">${t('wtot')}</label>${aIn('wt','calcW()')}<label class="l">${t('wfun')}</label>${aIn('wf','calcW()')}<label class="l">${t('wdebt')}</label>${aIn('wd','calcW()')}<label class="l">${t('wwas')}</label>${aIn('ww','calcW()')}</div>
+ <div class="card"><h3>${t('w2')}</h3><div class="g2"><button id="fq_hanafi" class="btn" onclick="wFiqh('hanafi')">${t('hanafi')}</button><button id="fq_jafaria" class="btn" onclick="wFiqh('jafaria')">${t('jafaria')}</button></div></div>
+ <h3 style="color:#0f5a28;margin:8px 4px">${t('w3')}</h3>${steps}<div id="wres"></div>`,true);
+ if(W.pre){sA('wt',W.pre);W.pre=null}
+ wFiqh(W.fiqh)};
+function wFiqh(f){W.fiqh=f;['hanafi','jafaria'].forEach(x=>{$('fq_'+x).className='btn '+(x==f?'sel':'off')});calcW()}
+function wStep(k,dl){const c=W.c;let v=Math.max(0,Math.min(k in MAXH?MAXH[k]:30,c[k]+dl));c[k]=v;
+ if(k=='h'&&v>0)c.w=0;if(k=='w'&&v>0)c.h=0;ORDER.forEach(x=>$('wc_'+x).textContent=c[x]);calcW()}
+function calcW(){
+ const tot=rA('wt'),fu=rA('wf'),db=rA('wd'),wa=rA('ww');
+ const net=Math.max(0,tot-fu-db),was=Math.min(wa,net/3),dist=net-was;
+ let L=[[t('wtot'),kmsT(tot)],[t('wfun'),kmsT(fu)],[t('wdebt'),kmsT(db)],[t('wwas'),kmsT(was)],[t('wdist'),kmsT(dist)+' ('+fmt(dist)+' '+t('sqft')+')']];
+ let h=`<div class="res">${L.map(x=>`<div>${x[0]}: <b>${x[1]}</b></div>`).join('')}${wa>net/3+1e-9?`<div class="warn">${t('wcap')}</div>`:''}</div>`;
+ const c=W.c,any=ORDER.some(k=>c[k]>0);CUR=null;
+ if(!any){$('wres').innerHTML=h+`<div class="small">${t('noheir')}</div>`;return}
+ const r=W.fiqh=='hanafi'?hanafi(c):jafaria(c);
+ const blk=['b','sis','gs','gd','f','m','s','d','h','w'].filter(k=>c[k]>0&&!r.rows.some(x=>x.k==k)).map(k=>t('hr_'+k));
+ const notes=r.notes.map(t);if(blk.length)notes.push(t('n_blk')+': '+blk.join('، '));
+ let tf=F(0);const rows=r.rows.map(x=>{tf=fa(tf,x.f);const sq=dist*fv(x.f);
+  return{nm:t('hr_'+x.k).replace(/\s*\(.*\)/,'')+(x.n>1?' × '+x.n:''),fr:fstr(x.f),pc:fmt(fv(x.f)*100)+'%',a:kmsT(sq),sq:fmt(sq),each:x.n>1?kmsT(sq/x.n)+' ('+fmt(sq/x.n)+' '+t('sqft')+')':''}});
+ const tr=rows.map(x=>`<tr><td><b>${x.nm}</b></td><td>${x.fr}<br>${x.pc}</td><td>${x.a}<br><span class="small">${x.sq} ${t('sqft')}</span>${x.each?`<br><span class="small">${t('each')}: ${x.each}</span>`:''}</td></tr>`).join('');
+ const chk=fc(tf,F(1))==0;
+ h+=`<div class="card"><table><tr><th>${t('heir')}</th><th>${t('frac')} / %</th><th>${t('area')}</th></tr>${tr}<tr><th>${t('total')}</th><th>${chk?'100%':fmt(fv(tf)*100)+'%'}</th><th>${kmsT(dist)}</th></tr></table></div>${notes.map(n=>`<div class="warn">${n}</div>`).join('')}<div class="warn">${t('wnote')}</div>${bar()}`;
+ $('wres').innerHTML=h;
+ const fq=t(W.fiqh);
+ setCur('wir',t('wirasat'),`<p>${t('fard')}: ${K.no?t('khata')+' '+K.no:''} ${K.owner||''} | ${fq}</p><div class="res">${L.map(x=>`<div>${x[0]}: <b>${x[1]}</b></div>`).join('')}</div><table><tr><th>${t('heir')}</th><th>${t('frac')}</th><th>%</th><th>${t('area')}</th><th>${t('sqft')}</th></tr>${rows.map(x=>`<tr><td>${x.nm}</td><td>${x.fr}</td><td>${x.pc}</td><td>${x.a}${x.each?'<br>'+t('each')+': '+x.each:''}</td><td>${x.sq}</td></tr>`).join('')}<tr><th>${t('total')}</th><th>1</th><th>100%</th><th>${kmsT(dist)}</th><th>${fmt(dist)}</th></tr></table>${notes.map(n=>`<p>${n}</p>`).join('')}<p>${t('wnote')}</p>`,
+  `${t('wirasat')} (${fq})\n${L.map(x=>x[0]+': '+x[1]).join('\n')}\n\n`+rows.map(x=>`${x.nm}: ${x.fr} = ${x.pc}\n   ${x.a} (${x.sq} ${t('sqft')})${x.each?'\n   '+t('each')+': '+x.each:''}`).join('\n')+`\n\n${t('total')}: 100%\n${t('wnote')}`)}
+
+/* ----- Utilities ----- */
+SCR.util=()=>{
+ const tabs=[['price',t('price')],['hissa',t('hissa')],['rect',t('rect')],['plots',t('plots')]];
+ page(t('util'),`<div class="g2">${tabs.map(x=>`<button class="btn sm ${U.tab==x[0]?'sel':'off'}" onclick="U.tab='${x[0]}';show('util')">${x[1]}</button>`).join('')}</div><div id="ut"></div>`,true);
+ UT[U.tab]();CUR=null};
+const UT={};
+UT.price=()=>{
+ $('ut').innerHTML=`<div class="g2"><button class="btn sm ${U.pm=='a'?'sel':'off'}" onclick="U.pm='a';UT.price()">${t('priceA')}</button><button class="btn sm ${U.pm=='b'?'sel':'off'}" onclick="U.pm='b';UT.price()">${t('priceB')}</button></div>
+ <div class="card"><label class="l">${t('area')}</label>${aIn('pa','calcPr()')}${U.pm=='a'?`<label class="l">${t('rate')}</label><input id="pr_r" type="number" inputmode="decimal" oninput="calcPr()">`:`<label class="l">${t('totprice')}</label><input id="pr_t" type="number" inputmode="decimal" oninput="calcPr()">`}</div><div id="prres"></div>`;
+ if(U.pre){sA('pa',U.pre);U.pre=null}};
+function calcPr(){
+ const sq=rA('pa'),mar=sq/m();let tp,rt;
+ if(U.pm=='a'){rt=parseFloat($('pr_r').value)||0;tp=rt*mar}else{tp=parseFloat($('pr_t').value)||0;rt=mar>0?tp/mar:0}
+ CUR=null;if(!(sq>0)||!(tp>0)){$('prres').innerHTML='';return}
+ const L=[[t('area'),kmsT(sq)],[t('totprice'),'Rs '+fmt(tp,0)],[t('permarla'),'Rs '+fmt(rt,0)],[t('perkanal'),'Rs '+fmt(rt*20,0)],[t('persqft'),'Rs '+fmt(rt/m(),2)],[t('persarsai'),'Rs '+fmt(rt/9,0)]];
+ $('prres').innerHTML=`<div class="res">${linesHtml(L)}</div>${bar()}`;
+ setCur('price',t('price'),`<div class="res">${linesHtml(L)}</div>`,linesTxt(L))}
+UT.hissa=()=>{
+ U.hm=U.hm||'eq';
+ $('ut').innerHTML=`<div class="card"><label class="l">${t('wtot')}</label>${aIn('ha','calcHi()')}</div>
+ <div class="g2"><button class="btn sm ${U.hm=='eq'?'sel':'off'}" onclick="U.hm='eq';UT.hissa()">${t('equal')}</button><button class="btn sm ${U.hm=='pc'?'sel':'off'}" onclick="U.hm='pc';UT.hissa()">${t('custom')}</button></div>
+ <div class="card">${U.hm=='eq'?`<label class="l">${t('persons')}</label><input id="hi_n" type="number" inputmode="numeric" oninput="calcHi()">`:`<label class="l">${t('pcts')}</label><input id="hi_p" placeholder="40,30,30" oninput="calcHi()">`}</div><div id="hires"></div>`;
+ if(U.pre){sA('ha',U.pre);U.pre=null}};
+function calcHi(){
+ const sq=rA('ha');let parts=[],w='';CUR=null;
+ if(U.hm=='eq'){const n=Math.floor(parseFloat($('hi_n').value)||0);if(n>0)parts=Array.from({length:n},()=>100/n)}
+ else{parts=$('hi_p').value.split(/[,\s]+/).map(Number).filter(x=>x>0);const s=parts.reduce((a,b)=>a+b,0);if(parts.length&&Math.abs(s-100)>0.01)w=`<div class="warn">${t('pctbad')} (${fmt(s)})</div>`}
+ if(!(sq>0)||!parts.length){$('hires').innerHTML=w;return}
+ const rows=parts.map((p,i)=>{const a=sq*p/100;return{n:`${t('person')} ${i+1}`,p:fmt(p)+'%',a:kmsT(a),s:fmt(a)}});
+ const tb=`<table><tr><th>${t('person')}</th><th>%</th><th>${t('area')}</th></tr>${rows.map(r=>`<tr><td>${r.n}</td><td>${r.p}</td><td>${r.a}<br><span class="small">${r.s} ${t('sqft')}</span></td></tr>`).join('')}</table>`;
+ $('hires').innerHTML=`<div class="card">${tb}</div>${w}${bar()}`;
+ setCur('hissa',t('hissa'),`<div class="res">${t('wtot')}: <b>${kmsT(sq)}</b> (${fmt(sq)} ${t('sqft')})</div>${tb}`,`${t('wtot')}: ${kmsT(sq)}\n`+rows.map(r=>`${r.n}: ${r.p} = ${r.a} (${r.s} ${t('sqft')})`).join('\n'))}
+UT.rect=()=>{
+ U.ru=U.ru||'ft';
+ $('ut').innerHTML=`<div class="g3">${[['ft',t('ft')],['gaz',t('gazu')],['karam',t('karamu')]].map(x=>`<button class="btn sm ${U.ru==x[0]?'sel':'off'}" onclick="U.ru='${x[0]}';UT.rect()">${x[1]}</button>`).join('')}</div>
+ <div class="card"><div class="g2"><label class="l">${t('length')}<input id="rc_l" type="number" inputmode="decimal" oninput="calcRc()"></label><label class="l">${t('width')}<input id="rc_w" type="number" inputmode="decimal" oninput="calcRc()"></label></div></div><div id="rcres"></div>`};
+function calcRc(){
+ const f=U.ru=='ft'?1:U.ru=='gaz'?3:5.5,l=(parseFloat($('rc_l').value)||0)*f,w=(parseFloat($('rc_w').value)||0)*f,sq=l*w;CUR=null;
+ if(!(sq>0)){$('rcres').innerHTML='';return}
+ const L=areaLines(sq);if(S.mode=='shehri')L.push([t('gaz'),fmt(sq/9)]);
+ $('rcres').innerHTML=`<div class="res">${linesHtml(L)}</div>${bar()}`;
+ setCur('rect',t('rect'),`<p>${fmt(l/f)} x ${fmt(w/f)}</p><div class="res">${linesHtml(L)}</div>`,`${fmt(l/f)} x ${fmt(w/f)}\n${linesTxt(L)}`)}
+UT.plots=()=>{
+ const rows=[[3,0],[5,0],[7,0],[10,0],[0,1]].map(x=>{const mar=x[1]?20:x[0],sq=mar*m();return `<tr><td><b>${x[1]?'1 '+t('kanal'):x[0]+' '+t('marla')}</b></td><td>${fmt(sq)} ${t('sqft')}</td><td>${fmt(sq/9)} ${t('gaz')}</td></tr>`}).join('');
+ $('ut').innerHTML=`<div class="card"><table><tr><th>${t('plots')}</th><th>${t('sqft')}</th><th>${t('gaz')}</th></tr>${rows}</table><div class="small">${t('marla')} = ${m()} ${t('sqft')}</div></div>`};
+
+/* ----- History ----- */
+SCR.hist=()=>{
+ page(t('hist'),H.length?H.map((x,i)=>`<button class="btn alt" style="text-align:start" onclick="hView(${i})">${x.title}<br><span class="small">${new Date(x.id).toLocaleString('en-GB')}</span></button>`).join('')+`<button class="btn red sm" onclick="H=[];sset('hist',H);show('hist')">${t('clearall')}</button>`:`<div class="small">${t('nohist')}</div>`,true)};
+function hView(i){const x=H[i];CUR=x;modal(`<h3>${x.title}</h3>${x.body}${bar()}<button class="btn red sm" onclick="hDel(${i})">${t('del')}</button><button class="btn alt sm" onclick="closeModal()">✕</button>`)}
+function hDel(i){H.splice(i,1);sset('hist',H);show('hist')}
+
+/* ---------- start ---------- */
+window.onload=()=>{if(S.started){NAV=['home'];fixMarla();show('home')}else{NAV=['mode'];show('mode')}};
+</script></body></html>
